@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital Scrapbook</title>
+  <meta name="description" content="A shared scrapbook of photos, dates and notes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alfa+Slab+One&family=Caveat:wght@500;700&family=Karla:wght@400;600;700&family=Playfair+Display:ital,wght@1,900&family=Special+Elite&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <p id="previewBanner" class="banner" hidden>
+    Preview mode: photos are saved in this browser only, so other people can't see them yet.
+  </p>
+
+  <header class="masthead">
+    <h1 id="title" class="title" title="Click to edit the title"></h1>
+    <form id="titleForm" class="title-form" hidden>
+      <input id="titleInput" maxlength="60" required autocomplete="off" aria-label="Scrapbook title">
+      <button class="btn btn-primary">Save title</button>
+      <button id="titleCancel" type="button" class="btn">Cancel</button>
+    </form>
+    <div id="mastheadActions" class="actions">
+      <button id="addBtn" class="btn btn-primary">
+        <span aria-hidden="true">+</span> Add a memory
+      </button>
+      <button id="editTitle" class="btn">Edit title</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div id="book" class="book">
+      <div id="pages" class="pages">
+        <div id="sheetL" class="sheet sheet-left"></div>
+        <div id="sheetR" class="sheet sheet-right"></div>
+      </div>
+      <div class="spiral" aria-hidden="true"></div>
+    </div>
+
+    <nav class="pager" aria-label="Scrapbook pages">
+      <button id="prev" class="btn round" aria-label="Previous page">&#8249;</button>
+      <span id="pageLabel" class="page-label" aria-live="polite"></span>
+      <button id="next" class="btn round" aria-label="Next page">&#8250;</button>
+      <button id="play" class="btn" aria-pressed="false">Play</button>
+    </nav>
+  </main>
+
+  <!-- Add photos -->
+  <dialog id="addDialog" class="paper-dialog">
+    <form id="addForm" method="dialog">
+      <h2>Add a memory</h2>
+      <label id="drop" class="drop">
+        <input id="fileInput" type="file" accept="image/*" multiple>
+        <span id="dropText">Choose photos, or drop them here</span>
+        <span id="previews" class="previews"></span>
+      </label>
+      <label class="field">Date
+        <input id="dateInput" type="date" required>
+      </label>
+      <label class="field">Note
+        <textarea id="noteInput" rows="3" maxlength="500" dir="auto" placeholder="What do you want to remember?"></textarea>
+      </label>
+      <label class="field">Your name <small>(optional)</small>
+        <input id="authorInput" maxlength="40" dir="auto" autocomplete="name">
+      </label>
+      <p id="addError" class="error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="addCancel" type="button" class="btn">Cancel</button>
+        <button id="addSubmit" type="submit" class="btn btn-primary">Stick it in</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- View / edit one photo -->
+  <dialog id="viewDialog" class="view-dialog">
+    <div class="view">
+      <img id="viewImg" alt="">
+      <div class="view-side">
+        <button id="viewClose" class="close" aria-label="Close">&times;</button>
+        <div id="viewRead">
+          <p id="viewDate" class="view-date"></p>
+          <p id="viewNote" class="view-note" dir="auto"></p>
+          <p id="viewAuthor" class="view-author" dir="auto"></p>
+          <div class="dialog-actions start">
+            <button id="viewEdit" class="btn">Edit</button>
+            <button id="viewDelete" class="btn">Delete</button>
+          </div>
+        </div>
+        <form id="viewForm" hidden>
+          <label class="field">Date <input id="editDate" type="date" required></label>
+          <label class="field">Note <textarea id="editNote" rows="5" maxlength="500" dir="auto"></textarea></label>
+          <div class="dialog-actions start">
+            <button class="btn btn-primary">Save</button>
+            <button id="editCancel" type="button" class="btn">Cancel</button>
+          </div>
+        </form>
+        <p id="viewError" class="error" role="alert" hidden></p>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Owner code -->
+  <dialog id="codeDialog" class="paper-dialog small">
+    <form id="codeForm" method="dialog">
+      <h2>Owner code</h2>
+      <p>Anyone can add photos, but only the scrapbook's owner can change the title or edit and delete photos.</p>
+      <label class="field">Code <input id="codeInput" type="password" required autocomplete="off"></label>
+      <p id="codeError" class="error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="codeCancel" type="button" class="btn">Cancel</button>
+        <button id="codeSubmit" type="submit" class="btn btn-primary">Continue</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="store.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
