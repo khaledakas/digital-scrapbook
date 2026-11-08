@@ -24,7 +24,9 @@ body.closed .sheet-left { visibility: hidden; }
   z-index: 4;
 }
 .cover:focus-visible { outline: 3px solid var(--twilight); outline-offset: 3px; }
-body.closed:not(.opening) .cover:hover { transform: perspective(2400px) rotateY(-7deg); }
+@media (hover: hover) {
+  body.closed:not(.opening) .cover:hover { transform: perspective(2400px) rotateY(-7deg); }
+}
 .cover { transition: transform .3s ease; }
 .cover-face {
   position: absolute;
