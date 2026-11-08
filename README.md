@@ -20,7 +20,7 @@ Until this is set up, the site runs in preview mode and photos stay in your own 
 
 - Anyone with the link can view and add photos.
 - Changing the title, editing and deleting need the owner code. The browser remembers it after the first use.
-- Deleting removes a photo from the scrapbook. The image file stays in the Supabase `photos` bucket until you remove it there.
+- Deleting removes a photo from the scrapbook. The image file stays in the Supabase `scrapbook-photos` bucket until you remove it there.
 - Free Supabase projects pause after a week with no activity. Restore it from the Supabase dashboard if the site stops loading.
 
 ## Run it locally

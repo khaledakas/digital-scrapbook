@@ -83,7 +83,7 @@ function createSharedStore(db, defaultTitle) {
     if (error) throw new Error(error.message);
     return data;
   };
-  const publicUrl = (path) => db.storage.from("photos").getPublicUrl(path).data.publicUrl;
+  const publicUrl = (path) => db.storage.from("scrapbook-photos").getPublicUrl(path).data.publicUrl;
 
   return {
     mode: "shared",
@@ -93,30 +93,30 @@ function createSharedStore(db, defaultTitle) {
       return row?.title || defaultTitle;
     },
     async setTitle(title, code) {
-      check(await db.rpc("set_title", { p_code: code, p_title: title }));
+      check(await db.rpc("scrapbook_set_title", { p_code: code, p_title: title }));
     },
     async list() {
-      const rows = check(await db.from("entries").select("id,photo_path,date,note,author,created_at"));
+      const rows = check(await db.from("scrapbook_entries").select("id,photo_path,date,note,author,created_at"));
       return rows.map((row) => ({ ...row, url: publicUrl(row.photo_path) }));
     },
     async add({ blob, date, note, author }) {
       const id = crypto.randomUUID();
       const path = `${id}.jpg`;
-      check(await db.storage.from("photos").upload(path, blob, {
+      check(await db.storage.from("scrapbook-photos").upload(path, blob, {
         contentType: "image/jpeg",
         cacheControl: "31536000",
       }));
-      check(await db.from("entries").insert({ id, photo_path: path, date, note, author }));
+      check(await db.from("scrapbook_entries").insert({ id, photo_path: path, date, note, author }));
       return id;
     },
     async update(id, { date, note }, code) {
-      check(await db.rpc("update_entry", { p_code: code, p_id: id, p_date: date, p_note: note }));
+      check(await db.rpc("scrapbook_update_entry", { p_code: code, p_id: id, p_date: date, p_note: note }));
     },
     async remove(id, code) {
-      check(await db.rpc("delete_entry", { p_code: code, p_id: id }));
+      check(await db.rpc("scrapbook_delete_entry", { p_code: code, p_id: id }));
     },
     async verifyCode(code) {
-      return check(await db.rpc("check_owner_code", { p_code: code }));
+      return check(await db.rpc("scrapbook_check_owner_code", { p_code: code }));
     },
   };
 }

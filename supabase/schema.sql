@@ -8,7 +8,7 @@ create table public.scrapbook_settings (
 );
 insert into public.scrapbook_settings (title) values ('Our Scrapbook');
 
-create table public.entries (
+create table public.scrapbook_entries (
   id uuid primary key,
   photo_path text not null unique check (photo_path ~ '^[0-9a-f-]{36}\.jpg$'),
   date date not null,
@@ -18,72 +18,72 @@ create table public.entries (
 );
 
 alter table public.scrapbook_settings enable row level security;
-alter table public.entries enable row level security;
+alter table public.scrapbook_entries enable row level security;
 
-create policy "Anyone can read the title" on public.scrapbook_settings
+create policy "Scrapbook: anyone can read the title" on public.scrapbook_settings
   for select to anon using (true);
-create policy "Anyone can read entries" on public.entries
+create policy "Scrapbook: anyone can read entries" on public.scrapbook_entries
   for select to anon using (true);
-create policy "Anyone can add entries" on public.entries
+create policy "Scrapbook: anyone can add entries" on public.scrapbook_entries
   for insert to anon with check (true);
 
 grant select on public.scrapbook_settings to anon;
-grant select, insert on public.entries to anon;
+grant select, insert on public.scrapbook_entries to anon;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('photos', 'photos', true, 5242880, array['image/jpeg']);
+values ('scrapbook-photos', 'scrapbook-photos', true, 5242880, array['image/jpeg']);
 
-create policy "Anyone can upload photos" on storage.objects
-  for insert to anon with check (bucket_id = 'photos');
+create policy "Scrapbook: anyone can upload photos" on storage.objects
+  for insert to anon with check (bucket_id = 'scrapbook-photos');
 
 -- The owner code lives in a schema the public API can't read.
-create schema if not exists private;
-create table private.owner (code text not null);
-insert into private.owner (code) values ('CHANGE-THIS-OWNER-CODE');
+create schema if not exists scrapbook_private;
+create table scrapbook_private.owner (code text not null);
+insert into scrapbook_private.owner (code) values ('CHANGE-THIS-OWNER-CODE');
 
-create function public.check_owner_code(p_code text) returns boolean
+create function public.scrapbook_check_owner_code(p_code text) returns boolean
 language sql security definer set search_path = '' as $$
   select exists (
-    select 1 from private.owner
+    select 1 from scrapbook_private.owner
     where code = p_code and code <> 'CHANGE-THIS-OWNER-CODE'
   );
 $$;
 
-create function private.require_owner(p_code text) returns void
+create function scrapbook_private.require_owner(p_code text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  if not public.check_owner_code(p_code) then
+  if not public.scrapbook_check_owner_code(p_code) then
     raise exception 'Wrong owner code';
   end if;
 end;
 $$;
 
-create function public.set_title(p_code text, p_title text) returns void
+create function public.scrapbook_set_title(p_code text, p_title text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  perform private.require_owner(p_code);
+  perform scrapbook_private.require_owner(p_code);
   update public.scrapbook_settings set title = p_title where id = 1;
 end;
 $$;
 
-create function public.update_entry(p_code text, p_id uuid, p_date date, p_note text) returns void
+create function public.scrapbook_update_entry(p_code text, p_id uuid, p_date date, p_note text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  perform private.require_owner(p_code);
-  update public.entries set date = p_date, note = p_note where id = p_id;
+  perform scrapbook_private.require_owner(p_code);
+  update public.scrapbook_entries set date = p_date, note = p_note where id = p_id;
 end;
 $$;
 
-create function public.delete_entry(p_code text, p_id uuid) returns void
+create function public.scrapbook_delete_entry(p_code text, p_id uuid) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  perform private.require_owner(p_code);
-  delete from public.entries where id = p_id;
+  perform scrapbook_private.require_owner(p_code);
+  delete from public.scrapbook_entries where id = p_id;
 end;
 $$;
 
-revoke all on function private.require_owner(text) from public;
-grant execute on function public.check_owner_code(text) to anon;
-grant execute on function public.set_title(text, text) to anon;
-grant execute on function public.update_entry(text, uuid, date, text) to anon;
-grant execute on function public.delete_entry(text, uuid) to anon;
+revoke all on function scrapbook_private.require_owner(text) from public;
+grant execute on function public.scrapbook_check_owner_code(text) to anon;
+grant execute on function public.scrapbook_set_title(text, text) to anon;
+grant execute on function public.scrapbook_update_entry(text, uuid, date, text) to anon;
+grant execute on function public.scrapbook_delete_entry(text, uuid) to anon;
