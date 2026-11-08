@@ -3,7 +3,8 @@ const CODE_KEY = "scrapbook-owner-code";
 const AUTHOR_KEY = "scrapbook-author";
 const PER_PAGE = 3;
 const MAX_FILES = 12;
-const FLIP_MS = 850;
+const FLIP_MS = 1150;
+const OPEN_MS = 1500;
 const narrow = matchMedia("(max-width: 760px)");
 const calm = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -14,6 +15,8 @@ const state = {
   pages: [],
   cur: 0,
   flipping: false,
+  opened: false,
+  popupShown: false,
   signature: "",
   viewing: null,
   autoplay: null,
@@ -72,12 +75,17 @@ function showError(id, message) {
 /* Cut-paper title */
 
 const LETTER_FONTS = ["'Abril Fatface'", "'Alfa Slab One'", "'Special Elite'", "'Playfair Display'", "'Caveat'"];
-const LETTER_PAPERS = ["pink", "butter", "cream", "ink-butter", "pink", "butter", "ink-pink"];
+const LETTER_PAPERS = ["thistle", "vanilla", "cream", "rose-vanilla", "thistle", "vanilla", "ebony-vanilla", "cream"];
 
 function renderTitle(text) {
-  const title = $("title");
+  paintLetters($("title"), text);
+  paintLetters($("coverTitle"), text);
+  $("title").setAttribute("aria-label", text);
+  $("cover").setAttribute("aria-label", `Open ${text}`);
+}
+
+function paintLetters(title, text) {
   title.replaceChildren();
-  title.setAttribute("aria-label", text);
   const clean = text.trim();
   // Connected scripts such as Arabic must stay joined, so they are cut by word.
   const joined = /[֐-ࣿ]/.test(clean);
@@ -194,6 +202,9 @@ function sorted(entries) {
 
 function buildPages() {
   const pages = [];
+  const opening = narrow.matches
+    ? [{ bouquet: true, hint: true }]
+    : [{ bouquet: true }, { bouquet: true, hint: true }];
   let batch = [];
   const flush = () => {
     if (batch.length) pages.push({ items: batch, month: batch[0].date.slice(0, 7) });
@@ -207,7 +218,7 @@ function buildPages() {
 
   if (!pages.length) pages.push({ blank: "first" });
   if (!narrow.matches && pages.length % 2) pages.push({ blank: pages[0].blank ? "second" : "more" });
-  state.pages = pages;
+  state.pages = [...opening, ...pages];
   state.cur = Math.min(snap(state.cur), lastIndex());
 }
 
@@ -235,13 +246,13 @@ const STICKER_SPOTS = {
   3: [[{ l: 77, t: 7 }, { l: 79, t: 74 }], [{ l: 13, t: 7 }, { l: 8, t: 76 }]],
 };
 
-const ink = "#4a2f38";
+const ink = "#0a014f";
 const STICKERS = {
-  star: `<svg viewBox="0 0 64 64"><path d="M32 5l8 18 20 2-15 13 5 20-18-11-18 11 5-20L4 25l20-2z" fill="#fce98f" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"/></svg>`,
-  heart: `<svg viewBox="0 0 64 64"><path d="M32 56S6 40 6 22c0-9 7-15 14-15 6 0 10 3 12 8 2-5 6-8 12-8 7 0 14 6 14 15 0 18-26 34-26 34z" fill="#f8c8d4" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"/></svg>`,
-  flower: `<svg viewBox="0 0 64 64"><g fill="#f8c8d4" stroke="${ink}" stroke-width="2.5"><circle cx="32" cy="14" r="10"/><circle cx="49" cy="27" r="10"/><circle cx="43" cy="48" r="10"/><circle cx="21" cy="48" r="10"/><circle cx="15" cy="27" r="10"/></g><circle cx="32" cy="33" r="9" fill="#fce98f" stroke="${ink}" stroke-width="2.5"/></svg>`,
-  sun: `<svg viewBox="0 0 64 64"><g stroke="${ink}" stroke-width="3" stroke-linecap="round"><path d="M32 3v9M32 52v9M3 32h9M52 32h9M11 11l7 7M46 46l7 7M11 53l7-7M46 18l7-7"/></g><circle cx="32" cy="32" r="16" fill="#fce98f" stroke="${ink}" stroke-width="2.5"/><path d="M26 36c3 4 9 4 12 0" fill="none" stroke="${ink}" stroke-width="2.5" stroke-linecap="round"/><circle cx="26" cy="28" r="2" fill="${ink}"/><circle cx="38" cy="28" r="2" fill="${ink}"/></svg>`,
-  cherry: `<svg viewBox="0 0 64 64"><path d="M20 40C24 24 34 12 46 7c0 12 2 22 2 31" fill="none" stroke="${ink}" stroke-width="2.5" stroke-linecap="round"/><circle cx="19" cy="47" r="12" fill="#f8c8d4" stroke="${ink}" stroke-width="2.5"/><circle cx="46" cy="47" r="12" fill="#f8c8d4" stroke="${ink}" stroke-width="2.5"/></svg>`,
+  star: `<svg viewBox="0 0 64 64"><path d="M32 5l8 18 20 2-15 13 5 20-18-11-18 11 5-20L4 25l20-2z" fill="#f6f5ae" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"/></svg>`,
+  heart: `<svg viewBox="0 0 64 64"><path d="M32 56S6 40 6 22c0-9 7-15 14-15 6 0 10 3 12 8 2-5 6-8 12-8 7 0 14 6 14 15 0 18-26 34-26 34z" fill="#8e3b46" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"/></svg>`,
+  flower: `<svg viewBox="0 0 64 64"><g fill="#e5d0e3" stroke="${ink}" stroke-width="2.5"><circle cx="32" cy="14" r="10"/><circle cx="49" cy="27" r="10"/><circle cx="43" cy="48" r="10"/><circle cx="21" cy="48" r="10"/><circle cx="15" cy="27" r="10"/></g><circle cx="32" cy="33" r="9" fill="#f6f5ae" stroke="${ink}" stroke-width="2.5"/></svg>`,
+  sun: `<svg viewBox="0 0 64 64"><g stroke="${ink}" stroke-width="3" stroke-linecap="round"><path d="M32 3v9M32 52v9M3 32h9M52 32h9M11 11l7 7M46 46l7 7M11 53l7-7M46 18l7-7"/></g><circle cx="32" cy="32" r="16" fill="#f6f5ae" stroke="${ink}" stroke-width="2.5"/><path d="M26 36c3 4 9 4 12 0" fill="none" stroke="${ink}" stroke-width="2.5" stroke-linecap="round"/><circle cx="26" cy="28" r="2" fill="${ink}"/><circle cx="38" cy="28" r="2" fill="${ink}"/></svg>`,
+  cherry: `<svg viewBox="0 0 64 64"><path d="M20 40C24 24 34 12 46 7c0 12 2 22 2 31" fill="none" stroke="${ink}" stroke-width="2.5" stroke-linecap="round"/><circle cx="19" cy="47" r="12" fill="#8e3b46" stroke="${ink}" stroke-width="2.5"/><circle cx="46" cy="47" r="12" fill="#8e3b46" stroke="${ink}" stroke-width="2.5"/></svg>`,
 };
 const STICKER_NAMES = Object.keys(STICKERS);
 
@@ -305,6 +316,12 @@ function renderPage(index) {
   const page = el("article", `page tint${index % 3}`);
   if (!data) return page;
 
+  if (data.bouquet) {
+    page.classList.add("endpaper");
+    if (data.hint) page.append(el("p", "turn-hint", "turn the page"));
+    return page;
+  }
+
   if (data.blank) {
     page.append(renderBlank(data.blank));
     const seed = hash(`${data.blank}${index}`);
@@ -360,6 +377,11 @@ function draw() {
   setSheet($("sheetR"), narrow.matches ? state.cur : state.cur + 1);
   updatePager();
   preloadAround(state.cur);
+  if (state.opened) {
+    const wantPopup = Boolean(state.pages[state.cur]?.bouquet);
+    if (wantPopup && !state.popupShown) showPopup(0);
+    if (!wantPopup && state.popupShown) hidePopup();
+  }
 }
 
 function rebuild() {
@@ -369,15 +391,87 @@ function rebuild() {
 
 /* Page flipping */
 
-function makeLeaf(frontIndex, backIndex) {
+// A turning page is a chain of hinged strips, so it can bend like real paper.
+function makeLeaf(drawFront, drawBack, count) {
   const leaf = el("div", "leaf");
-  const front = el("div", "face front");
-  const back = el("div", "face back");
-  front.append(renderPage(frontIndex));
-  back.append(renderPage(backIndex));
-  leaf.append(front, back);
+  const strips = [];
+  const shades = [];
+  let parent = leaf;
+  for (let i = 0; i < count; i += 1) {
+    const strip = el("div", i ? "strip" : "strip strip-root");
+    if (!i) strip.style.width = `${100 / count}%`;
+    for (const side of ["front", "back"]) {
+      const face = el("div", `face ${side}`);
+      const slice = el("div", "slice");
+      slice.style.width = `${count * 100}%`;
+      slice.style.left = `${-(side === "front" ? i : count - 1 - i) * 100}%`;
+      slice.append(side === "front" ? drawFront() : drawBack());
+      const shade = el("div", "shade");
+      face.append(slice, shade);
+      strip.append(face);
+      shades.push(shade);
+    }
+    parent.append(strip);
+    strips.push(strip);
+    parent = strip;
+  }
   $("pages").append(leaf);
-  return leaf;
+  return { leaf, strips, shades };
+}
+
+// Browsers can stall animations in background tabs; never leave the book stuck.
+function finishSoon(animations, ms) {
+  setTimeout(() => animations.forEach((animation) => animation.finish()), ms);
+  return Promise.all(animations.map((animation) => animation.finished.catch(() => {})));
+}
+
+function showPopup(delay) {
+  const popup = $("popup");
+  clearTimeout(showPopup.timer);
+  if (!popup.firstChild) popup.append(buildBouquet());
+  state.popupShown = true;
+  popup.hidden = false;
+  if (calm.matches) {
+    popup.className = "popup";
+    return;
+  }
+  popup.className = "popup folded";
+  showPopup.timer = setTimeout(() => { popup.className = "popup unfold"; }, delay + 30);
+}
+
+function hidePopup() {
+  const popup = $("popup");
+  clearTimeout(showPopup.timer);
+  state.popupShown = false;
+  if (calm.matches) {
+    popup.hidden = true;
+    return;
+  }
+  popup.className = "popup closing";
+  showPopup.timer = setTimeout(() => { popup.hidden = true; }, 440);
+}
+
+function openBook() {
+  if (state.opened) return;
+  state.opened = true;
+  const cover = $("cover");
+  const finish = () => {
+    document.body.classList.remove("closed", "opening");
+    cover.hidden = true;
+  };
+  if (calm.matches) {
+    finish();
+    showPopup(0);
+    return;
+  }
+  document.body.classList.add("opening");
+  cover.style.transition = "none";
+  const animation = cover.animate(
+    [{ transform: "perspective(2400px) rotateY(0deg)" }, { transform: "perspective(2400px) rotateY(-180deg)" }],
+    { duration: OPEN_MS, easing: "cubic-bezier(.45,.05,.3,1)", fill: "forwards" },
+  );
+  showPopup(OPEN_MS * 0.42);
+  finishSoon([animation], OPEN_MS + 150).then(finish);
 }
 
 function flipTo(target) {
@@ -393,38 +487,53 @@ function flipTo(target) {
   }
 
   state.flipping = true;
+  if (state.pages[from]?.bouquet) hidePopup();
+
   const single = narrow.matches;
-  const open = single ? -112 : -180;
-  let leaf;
+  const page = (index) => () => renderPage(index);
+  const plainBack = () => el("article", "page tint0");
+  let parts;
 
   if (single) {
-    leaf = makeLeaf(forward ? from : target, forward ? from : target);
+    parts = makeLeaf(page(forward ? from : target), plainBack, 4);
     setSheet($("sheetR"), forward ? target : from);
   } else if (forward) {
-    leaf = makeLeaf(from + 1, target);
+    parts = makeLeaf(page(from + 1), page(target), 6);
     setSheet($("sheetR"), target + 1);
   } else {
-    leaf = makeLeaf(target + 1, from);
+    parts = makeLeaf(page(target + 1), page(from), 6);
     setSheet($("sheetL"), target);
   }
 
-  const start = forward ? 0 : open;
-  const end = forward ? open : 0;
-  const frames = [{ transform: `rotateY(${start}deg)` }, { transform: `rotateY(${end}deg)` }];
-  if (single) {
-    frames[0].opacity = forward ? 1 : 0;
-    frames[1].opacity = forward ? 0 : 1;
-  }
-  const animation = leaf.animate(frames, {
-    duration: FLIP_MS,
-    easing: "cubic-bezier(.45,.05,.3,1)",
-    fill: "forwards",
+  const cast = el("div", "cast");
+  $("pages").append(cast);
+
+  const timing = { duration: FLIP_MS, fill: "forwards" };
+  const curl = 40 / (parts.strips.length - 1);
+  const direction = forward ? 1 : -1;
+  const [start, end] = forward ? [0, -180] : [-180, 0];
+  const animations = parts.strips.map((strip, index) => (index === 0
+    ? strip.animate(
+      [{ transform: `rotateY(${start}deg)` }, { transform: `rotateY(${end}deg)` }],
+      { ...timing, easing: "cubic-bezier(.45,.05,.3,1)" },
+    )
+    : strip.animate([
+      { transform: "rotateY(0deg)", easing: "ease-out" },
+      { transform: `rotateY(${-curl * 0.45 * direction}deg)`, offset: 0.2, easing: "ease-in-out" },
+      { transform: `rotateY(${curl * direction}deg)`, offset: 0.62, easing: "ease-in-out" },
+      { transform: "rotateY(0deg)" },
+    ], timing)));
+  // Shadow deepens gradually toward the free edge, which reads as a smooth curve.
+  parts.shades.forEach((shade, index) => {
+    const depth = Math.floor(index / 2) / parts.strips.length;
+    animations.push(shade.animate({ opacity: [0, 0.2 + depth * 0.8, 0] }, timing));
   });
-  // Browsers can stall animations in background tabs; never leave the book stuck mid-flip.
-  setTimeout(() => animation.finish(), FLIP_MS + 120);
-  animation.finished.catch(() => {}).finally(() => {
+  animations.push(cast.animate({ opacity: [0, 1, 0] }, timing));
+
+  finishSoon(animations, FLIP_MS + 120).then(() => {
     draw();
-    leaf.remove();
+    parts.leaf.remove();
+    cast.remove();
     state.flipping = false;
   });
   updatePager();
@@ -450,6 +559,10 @@ function toggleAutoplay() {
 }
 
 function manualFlip(delta) {
+  if (!state.opened) {
+    openBook();
+    return;
+  }
   stopAutoplay();
   flipTo(state.cur + delta * step());
 }
@@ -672,7 +785,24 @@ function quietRefresh() {
 
 /* Wiring */
 
+function dressCover() {
+  const art = $("coverArt");
+  art.append(petalDefs());
+  const flowers = [
+    { left: -16, top: -9, size: 62, colour: "pink", seed: 301 },
+    { left: 34, top: -15, size: 46, colour: "white", seed: 302 },
+    { left: 66, top: 76, size: 58, colour: "white", seed: 303 },
+    { left: 28, top: 85, size: 44, colour: "pink", seed: 304 },
+  ];
+  flowers.forEach((flower) => art.append(makeBloom(flower)));
+}
+
+function measureMasthead() {
+  document.documentElement.style.setProperty("--masthead-height", `${$("title").closest("header").offsetHeight}px`);
+}
+
 function wire() {
+  $("cover").addEventListener("click", openBook);
   $("title").addEventListener("click", startTitleEdit);
   $("editTitle").addEventListener("click", startTitleEdit);
   $("titleInput").addEventListener("input", () => renderTitle($("titleInput").value || " "));
@@ -741,8 +871,11 @@ function wire() {
 
 async function start() {
   wire();
+  dressCover();
   const config = window.SCRAPBOOK_CONFIG;
   renderTitle(config.defaultTitle);
+  measureMasthead();
+  addEventListener("resize", measureMasthead);
   try {
     state.store = await createStore(config);
     $("previewBanner").hidden = state.store.mode !== "local";
