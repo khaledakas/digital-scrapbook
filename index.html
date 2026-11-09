@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alfa+Slab+One&family=Caveat:wght@500;700&family=Karla:wght@400;600;700&family=Playfair+Display:ital,wght@1,900&family=Special+Elite&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=5">
-  <link rel="stylesheet" href="book.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="book.css?v=6">
 </head>
 <body class="closed">
   <p id="previewBanner" class="banner" hidden>
@@ -28,6 +28,10 @@
         <span aria-hidden="true">+</span> Add a memory
       </button>
       <button id="editTitle" class="btn">Edit title</button>
+    </div>
+    <div id="search" class="search" role="search">
+      <input id="searchInput" type="search" dir="auto" autocomplete="off" placeholder="Search titles and notes" aria-label="Search memories">
+      <div id="searchResults" class="search-results" hidden></div>
     </div>
   </header>
 
@@ -52,6 +56,7 @@
     <nav class="pager" aria-label="Scrapbook pages">
       <button id="prev" class="btn round" aria-label="Previous page">&#8249;</button>
       <span id="pageLabel" class="page-label" aria-live="polite"></span>
+      <select id="monthJump" class="month-jump" aria-label="Jump to month" hidden></select>
       <button id="next" class="btn round" aria-label="Next page">&#8250;</button>
       <button id="play" class="btn" aria-pressed="false">Play</button>
     </nav>
@@ -60,7 +65,8 @@
   <!-- Add photos -->
   <dialog id="addDialog" class="paper-dialog">
     <form id="addForm" method="dialog">
-      <h2>Add a memory</h2>
+      <h2 id="addHeading">Add a memory</h2>
+      <p id="insertHint" class="insert-hint" hidden></p>
       <label id="drop" class="drop">
         <input id="fileInput" type="file" accept="image/*" multiple>
         <span id="dropText">Choose photos, or drop them here</span>
@@ -74,6 +80,9 @@
         </label>
         <button id="audioClear" type="button" class="btn" hidden>Remove</button>
       </div>
+      <label class="field">Title <small>(optional)</small>
+        <input id="memoryTitle" maxlength="80" dir="auto" autocomplete="off">
+      </label>
       <label class="field">Date
         <input id="dateInput" type="date" required>
       </label>
@@ -99,6 +108,7 @@
         <button id="viewClose" class="close" aria-label="Close">&times;</button>
         <div id="viewRead">
           <p id="viewDate" class="view-date"></p>
+          <h3 id="viewTitle" class="view-title" dir="auto"></h3>
           <p id="viewNote" class="view-note" dir="auto"></p>
           <p id="viewAuthor" class="view-author" dir="auto"></p>
           <div id="viewSound" class="view-sound" hidden>
@@ -106,11 +116,16 @@
             <audio id="viewAudio" controls preload="metadata"></audio>
           </div>
           <div class="dialog-actions start">
+            <button id="addBefore" class="btn">+ Add before</button>
+            <button id="addAfter" class="btn">+ Add after</button>
+          </div>
+          <div class="dialog-actions start">
             <button id="viewEdit" class="btn">Edit</button>
             <button id="viewDelete" class="btn">Delete</button>
           </div>
         </div>
         <form id="viewForm" hidden>
+          <label class="field">Title <input id="editMemoryTitle" maxlength="80" dir="auto" autocomplete="off"></label>
           <label class="field">Date <input id="editDate" type="date" required></label>
           <label class="field">Note <textarea id="editNote" rows="5" maxlength="500" dir="auto"></textarea></label>
           <div class="dialog-actions start">
@@ -139,9 +154,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=5"></script>
-  <script src="store.js?v=5"></script>
-  <script src="bouquet.js?v=5"></script>
-  <script src="app.js?v=5"></script>
+  <script src="config.js?v=6"></script>
+  <script src="store.js?v=6"></script>
+  <script src="bouquet.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

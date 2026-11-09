@@ -45,22 +45,25 @@ function createLocalStore(defaultTitle) {
       const rows = await run("entries", "readonly", (s) => s.getAll());
       return rows.map(({ blob, audioBlob, ...row }) => ({
         ...row,
+        title: row.title || "",
+        sort_key: row.sort_key ?? Date.parse(row.created_at) / 1000,
         url: urlFor(row.id, blob),
         audio_url: audioBlob ? urlFor(`audio-${row.id}`, audioBlob) : null,
       }));
     },
-    async add({ blob, date, note, author, audio }) {
+    async add({ blob, date, note, author, audio, title, sortKey }) {
       const row = {
-        id: crypto.randomUUID(), blob, date, note, author,
+        id: crypto.randomUUID(), blob, date, note, author, title,
+        sort_key: sortKey ?? Date.now() / 1000,
         audioBlob: audio?.blob || null,
         created_at: new Date().toISOString(),
       };
       await run("entries", "readwrite", (s) => s.put(row));
       return row.id;
     },
-    async update(id, { date, note }) {
+    async update(id, { date, note, title }) {
       const row = await run("entries", "readonly", (s) => s.get(id));
-      await run("entries", "readwrite", (s) => s.put({ ...row, date, note }));
+      await run("entries", "readwrite", (s) => s.put({ ...row, date, note, title }));
     },
     async remove(id) {
       await run("entries", "readwrite", (s) => s.delete(id));
@@ -103,14 +106,14 @@ function createSharedStore(db, defaultTitle) {
       check(await db.rpc("scrapbook_set_title", { p_code: code, p_title: title }));
     },
     async list() {
-      const rows = check(await db.from("scrapbook_entries").select("id,photo_path,audio_path,date,note,author,created_at"));
+      const rows = check(await db.from("scrapbook_entries").select("id,photo_path,audio_path,date,sort_key,title,note,author,created_at"));
       return rows.map((row) => ({
         ...row,
         url: publicUrl("scrapbook-photos", row.photo_path),
         audio_url: row.audio_path ? publicUrl("scrapbook-audio", row.audio_path) : null,
       }));
     },
-    async add({ blob, date, note, author, audio }) {
+    async add({ blob, date, note, author, audio, title, sortKey }) {
       const id = crypto.randomUUID();
       const path = `${id}.jpg`;
       const audioPath = audio ? `${id}.${audio.ext}` : null;
@@ -126,11 +129,13 @@ function createSharedStore(db, defaultTitle) {
         contentType: "image/jpeg",
         cacheControl: "31536000",
       }));
-      check(await db.from("scrapbook_entries").insert({ id, photo_path: path, audio_path: audioPath, date, note, author }));
+      const row = { id, photo_path: path, audio_path: audioPath, date, note, author, title };
+      if (sortKey !== undefined) row.sort_key = sortKey;
+      check(await db.from("scrapbook_entries").insert(row));
       return id;
     },
-    async update(id, { date, note }, code) {
-      check(await db.rpc("scrapbook_update_entry", { p_code: code, p_id: id, p_date: date, p_note: note }));
+    async update(id, { date, note, title }, code) {
+      check(await db.rpc("scrapbook_update_entry", { p_code: code, p_id: id, p_date: date, p_note: note, p_title: title }));
     },
     async remove(id, code) {
       check(await db.rpc("scrapbook_delete_entry", { p_code: code, p_id: id }));

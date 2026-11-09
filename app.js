@@ -26,6 +26,7 @@ const state = {
   signature: "",
   viewing: null,
   autoplay: null,
+  insertAt: null,
 };
 
 /* Small helpers */
@@ -203,7 +204,7 @@ function forgetCodeIfRejected(error) {
 
 function sorted(entries) {
   return [...entries].sort((a, b) =>
-    a.date.localeCompare(b.date) || String(a.created_at).localeCompare(String(b.created_at)));
+    a.date.localeCompare(b.date) || a.sort_key - b.sort_key || String(a.created_at).localeCompare(String(b.created_at)));
 }
 
 function buildPages() {
@@ -226,6 +227,17 @@ function buildPages() {
   if (!narrow.matches && pages.length % 2) pages.push({ blank: pages[0].blank ? "second" : "more" });
   state.pages = [...opening, ...pages];
   state.cur = Math.min(snap(state.cur), lastIndex());
+  fillMonths();
+}
+
+function fillMonths() {
+  const months = [...new Set(state.pages.map((page) => page.month).filter(Boolean))];
+  const select = $("monthJump");
+  select.hidden = months.length < 2;
+  select.replaceChildren(new Option("Jump to month", ""), ...months.map((month) => new Option(
+    parseDay(`${month}-01`).toLocaleDateString(undefined, { month: "long", year: "numeric" }),
+    month,
+  )));
 }
 
 const step = () => (narrow.matches ? 1 : 2);
@@ -278,7 +290,7 @@ function renderCard(entry, slot, order) {
   const card = el("button", `card ${slip ? "card-slip" : "card-polaroid"}`);
   card.type = "button";
   card.style.cssText = `left:${slot.l}%;top:${slot.t}%;width:${slot.w}%;height:${slot.h}%;--r:${slot.r}deg;z-index:${order + 1}`;
-  card.setAttribute("aria-label", `${prettyDay(entry.date)}${entry.note ? `: ${entry.note}` : ""}.${entry.audio_url ? " Has a sound clip." : ""} Open photo.`);
+  card.setAttribute("aria-label", `${entry.title ? `${entry.title}, ` : ""}${prettyDay(entry.date)}${entry.note ? `: ${entry.note}` : ""}.${entry.audio_url ? " Has a sound clip." : ""} Open photo.`);
   card.dataset.id = entry.id;
 
   const tape = el("span", `tape tape${seed % 3}`);
@@ -294,6 +306,11 @@ function renderCard(entry, slot, order) {
 
   const caption = el("span", "caption");
   caption.append(el("span", "when", prettyDay(entry.date)));
+  if (entry.title) {
+    const name = el("span", "memory-title", entry.title);
+    name.dir = "auto";
+    caption.append(name);
+  }
   if (entry.note) {
     const note = el("span", "note", entry.note);
     note.dir = "auto";
@@ -373,6 +390,7 @@ function updatePager() {
   $("prev").disabled = state.cur === 0;
   $("next").disabled = state.cur >= lastIndex();
   $("play").disabled = total <= step();
+  $("monthJump").value = state.pages[state.cur]?.month || state.pages[state.cur + 1]?.month || "";
 }
 
 function draw() {
@@ -605,8 +623,43 @@ function clearPreviews() {
   $("previews").replaceChildren();
 }
 
+const memoryLabel = (entry) => entry.title || prettyDay(entry.date);
+
+function openInsert(side) {
+  const list = sorted(state.entries);
+  const here = list.findIndex((entry) => entry.id === state.viewing.id);
+  const [before, after] = side === "before" ? [list[here - 1], list[here]] : [list[here], list[here + 1]];
+  $("viewDialog").close();
+  openAdd();
+  state.insertAt = { before, after };
+  $("addHeading").textContent = "Add a memory here";
+  $("insertHint").textContent = before && after
+    ? `Goes between ${memoryLabel(before)} and ${memoryLabel(after)}`
+    : `Goes ${before ? `after ${memoryLabel(before)}` : `before ${memoryLabel(after)}`}`;
+  $("insertHint").hidden = false;
+  // The date has to stay between the two neighbours, or it couldn't land there.
+  if (before) $("dateInput").min = before.date;
+  if (after) $("dateInput").max = after.date;
+  $("dateInput").value = (before || after).date;
+}
+
+// Evenly spaced sort keys that fall between the two neighbours on the chosen date.
+function insertKeys(count, date) {
+  const { before, after } = state.insertAt;
+  const onBefore = before?.date === date;
+  const onAfter = after?.date === date;
+  const low = onBefore ? before.sort_key : onAfter ? after.sort_key - 2 : 0;
+  const high = onAfter ? after.sort_key : low + 2;
+  return Array.from({ length: count }, (_, i) => low + ((high - low) * (i + 1)) / (count + 1));
+}
+
 function openAdd() {
   stopAutoplay();
+  state.insertAt = null;
+  $("addHeading").textContent = "Add a memory";
+  $("insertHint").hidden = true;
+  $("dateInput").removeAttribute("min");
+  $("dateInput").removeAttribute("max");
   chosenFiles = [];
   dateTouched = false;
   clearPreviews();
@@ -636,7 +689,7 @@ function chooseFiles(fileList) {
     $("previews").append(preview);
   }
   $("dropText").textContent = chosenFiles.length === 1 ? "1 photo chosen" : `${chosenFiles.length} photos chosen`;
-  if (!dateTouched) {
+  if (!dateTouched && !state.insertAt) {
     $("dateInput").value = isoDay(new Date(Math.min(...chosenFiles.map((f) => f.lastModified))));
   }
 }
@@ -671,6 +724,8 @@ async function submitAdd(event) {
   const date = $("dateInput").value;
   const note = $("noteInput").value.trim();
   const author = $("authorInput").value.trim();
+  const title = $("memoryTitle").value.trim();
+  const sortKeys = state.insertAt ? insertKeys(chosenFiles.length, date) : [];
   storageSet(AUTHOR_KEY, author);
   showError("addError", "");
 
@@ -684,7 +739,7 @@ async function submitAdd(event) {
     try {
       const blob = await toJpeg(file);
       // One clip per upload: it goes on the first photo that saves.
-      lastId = await state.store.add({ blob, date, note, author, audio: chosenAudio });
+      lastId = await state.store.add({ blob, date, note, author, title, audio: chosenAudio, sortKey: sortKeys[i] });
       setAudio(null);
     } catch (error) {
       failed.push(file);
@@ -717,6 +772,7 @@ function fillView(entry) {
   $("viewImg").src = entry.url;
   $("viewImg").alt = entry.note || `Photo from ${prettyDay(entry.date)}`;
   $("viewDate").textContent = prettyDay(entry.date);
+  $("viewTitle").textContent = entry.title;
   $("viewNote").textContent = entry.note;
   $("viewAuthor").textContent = entry.author ? `Added by ${entry.author}` : "";
 }
@@ -742,6 +798,7 @@ function openView(id) {
 
 async function startEdit() {
   if (!(await ownerCode())) return;
+  $("editMemoryTitle").value = state.viewing.title;
   $("editDate").value = state.viewing.date;
   $("editNote").value = state.viewing.note;
   setViewEditing(true);
@@ -751,7 +808,11 @@ async function saveEdit(event) {
   event.preventDefault();
   const code = await ownerCode();
   if (!code) return;
-  const changes = { date: $("editDate").value, note: $("editNote").value.trim() };
+  const changes = {
+    date: $("editDate").value,
+    note: $("editNote").value.trim(),
+    title: $("editMemoryTitle").value.trim(),
+  };
   try {
     await state.store.update(state.viewing.id, changes, code);
     state.viewing = { ...state.viewing, ...changes };
@@ -787,11 +848,52 @@ async function deleteViewing() {
   }
 }
 
+/* Search */
+
+function closeSearch() {
+  $("searchResults").hidden = true;
+}
+
+function searchHit(entry) {
+  const hit = el("button", "search-hit");
+  hit.type = "button";
+  const thumb = el("img");
+  thumb.src = entry.url;
+  thumb.alt = "";
+  const text = el("span", "search-text");
+  const name = el("span", "search-name", entry.title || entry.note || "Untitled");
+  name.dir = "auto";
+  text.append(name, el("span", "search-when", prettyDay(entry.date)));
+  hit.append(thumb, text);
+  hit.addEventListener("click", () => {
+    closeSearch();
+    const pageIndex = state.pages.findIndex((page) => page.items?.some((item) => item.id === entry.id));
+    if (pageIndex >= 0) flipTo(pageIndex);
+    openView(entry.id);
+  });
+  return hit;
+}
+
+function runSearch() {
+  const query = $("searchInput").value.trim().toLocaleLowerCase();
+  const box = $("searchResults");
+  if (!query) {
+    closeSearch();
+    return;
+  }
+  const inTitle = (entry) => entry.title.toLocaleLowerCase().includes(query);
+  const hits = sorted(state.entries).filter((entry) => inTitle(entry) || entry.note.toLocaleLowerCase().includes(query));
+  // Title matches come first; within each group the order stays by date.
+  hits.sort((a, b) => inTitle(b) - inTitle(a));
+  box.replaceChildren(...(hits.length ? hits.slice(0, 30).map(searchHit) : [el("p", "search-none", "No memories match that.")]));
+  box.hidden = false;
+}
+
 /* Loading */
 
 async function refresh({ jumpTo } = {}) {
   const [title, entries] = await Promise.all([state.store.getTitle(), state.store.list()]);
-  const signature = JSON.stringify([title, entries.map((e) => [e.id, e.date, e.note])]);
+  const signature = JSON.stringify([title, entries.map((e) => [e.id, e.date, e.sort_key, e.title, e.note])]);
   const changed = signature !== state.signature;
   state.signature = signature;
   state.entries = entries;
@@ -874,6 +976,22 @@ function wire() {
   $("prev").addEventListener("click", () => manualFlip(-1));
   $("next").addEventListener("click", () => manualFlip(1));
   $("play").addEventListener("click", toggleAutoplay);
+  $("monthJump").addEventListener("change", (event) => {
+    if (!event.target.value) return;
+    stopAutoplay();
+    flipTo(state.pages.findIndex((page) => page.month === event.target.value));
+  });
+
+  $("searchInput").addEventListener("input", runSearch);
+  $("searchInput").addEventListener("focus", runSearch);
+  $("searchInput").addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeSearch();
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#search")) closeSearch();
+  });
+  $("addBefore").addEventListener("click", () => openInsert("before"));
+  $("addAfter").addEventListener("click", () => openInsert("after"));
 
   let touchX = null;
   let swipedAt = 0;
@@ -894,7 +1012,7 @@ function wire() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (document.querySelector("dialog[open]") || event.target.matches("input,textarea")) return;
+    if (document.querySelector("dialog[open]") || event.target.matches("input,textarea,select")) return;
     if (event.key === "ArrowRight") manualFlip(1);
     if (event.key === "ArrowLeft") manualFlip(-1);
   });

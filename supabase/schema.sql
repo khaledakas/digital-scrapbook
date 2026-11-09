@@ -13,6 +13,8 @@ create table public.scrapbook_entries (
   photo_path text not null unique check (photo_path ~ '^[0-9a-f-]{36}\.jpg$'),
   audio_path text unique check (audio_path ~ '^[0-9a-f-]{36}\.(mp3|m4a|aac|wav|ogg|opus|webm|flac)$'),
   date date not null,
+  sort_key double precision not null default extract(epoch from now()),
+  title text not null default '' check (char_length(title) <= 80),
   note text not null default '' check (char_length(note) <= 500),
   author text not null default '' check (char_length(author) <= 40),
   created_at timestamptz not null default now()
@@ -74,11 +76,11 @@ begin
 end;
 $$;
 
-create function public.scrapbook_update_entry(p_code text, p_id uuid, p_date date, p_note text) returns void
+create function public.scrapbook_update_entry(p_code text, p_id uuid, p_date date, p_note text, p_title text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
   perform scrapbook_private.require_owner(p_code);
-  update public.scrapbook_entries set date = p_date, note = p_note where id = p_id;
+  update public.scrapbook_entries set date = p_date, note = p_note, title = p_title where id = p_id;
 end;
 $$;
 
@@ -93,5 +95,5 @@ $$;
 revoke all on function scrapbook_private.require_owner(text) from public;
 grant execute on function public.scrapbook_check_owner_code(text) to anon;
 grant execute on function public.scrapbook_set_title(text, text) to anon;
-grant execute on function public.scrapbook_update_entry(text, uuid, date, text) to anon;
+grant execute on function public.scrapbook_update_entry(text, uuid, date, text, text) to anon;
 grant execute on function public.scrapbook_delete_entry(text, uuid) to anon;
