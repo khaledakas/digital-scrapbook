@@ -600,11 +600,11 @@ let dateTouched = false;
 
 function setAudio(audio) {
   chosenAudio = audio;
-  $("audioText").textContent = audio ? audio.blob.name : "Add a sound clip (optional)";
+  $("audioText").textContent = audio ? audio.name : "Add a sound clip (optional)";
   $("audioClear").hidden = !audio;
 }
 
-function chooseAudio(file) {
+async function chooseAudio(file) {
   const ext = file.name.split(".").pop().toLowerCase();
   if (!Object.hasOwn(AUDIO_TYPES, ext)) {
     showError("addError", "That sound file isn't supported. Try MP3, M4A or WAV.");
@@ -614,8 +614,20 @@ function chooseAudio(file) {
     showError("addError", `That sound clip is too big. The limit is ${MAX_AUDIO_MB} MB.`);
     return;
   }
+  // Copy the bytes now: some browsers lose access to a picked file once the picker is cleared.
+  let bytes;
+  try {
+    bytes = await file.arrayBuffer();
+  } catch {
+    showError("addError", "Couldn't read that sound file. Try saving it to your device first.");
+    return;
+  }
+  if (!bytes.byteLength) {
+    showError("addError", "That sound file came through empty. If it's in iCloud or another cloud drive, download it to your device first.");
+    return;
+  }
   showError("addError", "");
-  setAudio({ blob: file, ext, type: AUDIO_TYPES[ext] });
+  setAudio({ blob: new Blob([bytes], { type: AUDIO_TYPES[ext] }), ext, name: file.name });
 }
 
 function clearPreviews() {
@@ -953,8 +965,8 @@ function wire() {
   $("dateInput").addEventListener("input", () => { dateTouched = true; });
   $("fileInput").addEventListener("change", (event) => chooseFiles(event.target.files));
 
-  $("audioInput").addEventListener("change", (event) => {
-    if (event.target.files[0]) chooseAudio(event.target.files[0]);
+  $("audioInput").addEventListener("change", async (event) => {
+    if (event.target.files[0]) await chooseAudio(event.target.files[0]);
     event.target.value = "";
   });
   $("audioClear").addEventListener("click", () => setAudio(null));

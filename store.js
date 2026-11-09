@@ -119,9 +119,7 @@ function createSharedStore(db, defaultTitle) {
       const audioPath = audio ? `${id}.${audio.ext}` : null;
       // Sound goes first: it's the upload most likely to be refused.
       if (audio) {
-        // The SDK sends a File's own type and ignores contentType, so relabel the bytes.
-        const sound = audio.blob.slice(0, audio.blob.size, audio.type);
-        check(await db.storage.from("scrapbook-audio").upload(audioPath, sound, {
+        check(await db.storage.from("scrapbook-audio").upload(audioPath, audio.blob, {
           cacheControl: "31536000",
         }));
       }
