@@ -165,6 +165,44 @@ body.closed .sheet-left { visibility: hidden; }
   to { transform: none; opacity: 1; }
 }
 
+/* Spinning record for memories with sound */
+.record {
+  position: relative;
+  display: block;
+  flex: none;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--vanilla) 0 6%, var(--rose) 7% 34%, transparent 35%),
+    conic-gradient(rgba(255, 255, 255, .28) 0 7%, transparent 13% 50%, rgba(255, 255, 255, .2) 50% 56%, transparent 62%),
+    repeating-radial-gradient(circle, var(--twilight) 0 1.5px, #1e1468 1.5px 3px);
+  box-shadow: 0 1px 3px rgba(10, 1, 79, .45);
+  animation: record-spin 2.6s linear infinite;
+}
+/* A dot on the label keeps the turning visible at small sizes. */
+.record::after {
+  content: "";
+  position: absolute;
+  top: 37%;
+  left: 47%;
+  width: 7%;
+  height: 7%;
+  border-radius: 50%;
+  background: var(--vanilla);
+}
+.card-record { position: absolute; top: 8%; right: 5%; width: max(30px, 9cqw); }
+.pick-record { width: 38px; animation: none; }
+.view-record { width: min(150px, 60%); animation-play-state: paused; }
+.view-record.playing { animation-play-state: running; }
+.leaf .record { animation: none; }
+
+@keyframes record-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .record { animation: none; }
+}
+
 /* Paper page turn */
 .leaf { pointer-events: none; }
 .strip {

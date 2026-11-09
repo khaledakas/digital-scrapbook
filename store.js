@@ -27,9 +27,9 @@ function createLocalStore(defaultTitle) {
     });
   }
 
-  const urlFor = (row) => {
-    if (!urls.has(row.id)) urls.set(row.id, URL.createObjectURL(row.blob));
-    return urls.get(row.id);
+  const urlFor = (key, blob) => {
+    if (!urls.has(key)) urls.set(key, URL.createObjectURL(blob));
+    return urls.get(key);
   };
 
   return {
@@ -43,11 +43,16 @@ function createLocalStore(defaultTitle) {
     },
     async list() {
       const rows = await run("entries", "readonly", (s) => s.getAll());
-      return rows.map(({ blob, ...row }) => ({ ...row, url: urlFor({ ...row, blob }) }));
+      return rows.map(({ blob, audioBlob, ...row }) => ({
+        ...row,
+        url: urlFor(row.id, blob),
+        audio_url: audioBlob ? urlFor(`audio-${row.id}`, audioBlob) : null,
+      }));
     },
-    async add({ blob, date, note, author }) {
+    async add({ blob, date, note, author, audio }) {
       const row = {
         id: crypto.randomUUID(), blob, date, note, author,
+        audioBlob: audio?.blob || null,
         created_at: new Date().toISOString(),
       };
       await run("entries", "readwrite", (s) => s.put(row));
@@ -59,8 +64,10 @@ function createLocalStore(defaultTitle) {
     },
     async remove(id) {
       await run("entries", "readwrite", (s) => s.delete(id));
-      if (urls.has(id)) URL.revokeObjectURL(urls.get(id));
-      urls.delete(id);
+      for (const key of [id, `audio-${id}`]) {
+        if (urls.has(key)) URL.revokeObjectURL(urls.get(key));
+        urls.delete(key);
+      }
     },
     async verifyCode() {
       return true;
@@ -83,7 +90,7 @@ function createSharedStore(db, defaultTitle) {
     if (error) throw new Error(error.message);
     return data;
   };
-  const publicUrl = (path) => db.storage.from("scrapbook-photos").getPublicUrl(path).data.publicUrl;
+  const publicUrl = (bucket, path) => db.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 
   return {
     mode: "shared",
@@ -96,17 +103,30 @@ function createSharedStore(db, defaultTitle) {
       check(await db.rpc("scrapbook_set_title", { p_code: code, p_title: title }));
     },
     async list() {
-      const rows = check(await db.from("scrapbook_entries").select("id,photo_path,date,note,author,created_at"));
-      return rows.map((row) => ({ ...row, url: publicUrl(row.photo_path) }));
+      const rows = check(await db.from("scrapbook_entries").select("id,photo_path,audio_path,date,note,author,created_at"));
+      return rows.map((row) => ({
+        ...row,
+        url: publicUrl("scrapbook-photos", row.photo_path),
+        audio_url: row.audio_path ? publicUrl("scrapbook-audio", row.audio_path) : null,
+      }));
     },
-    async add({ blob, date, note, author }) {
+    async add({ blob, date, note, author, audio }) {
       const id = crypto.randomUUID();
       const path = `${id}.jpg`;
+      const audioPath = audio ? `${id}.${audio.ext}` : null;
+      // Sound goes first: it's the upload most likely to be refused.
+      if (audio) {
+        // The SDK sends a File's own type and ignores contentType, so relabel the bytes.
+        const sound = audio.blob.slice(0, audio.blob.size, audio.type);
+        check(await db.storage.from("scrapbook-audio").upload(audioPath, sound, {
+          cacheControl: "31536000",
+        }));
+      }
       check(await db.storage.from("scrapbook-photos").upload(path, blob, {
         contentType: "image/jpeg",
         cacheControl: "31536000",
       }));
-      check(await db.from("scrapbook_entries").insert({ id, photo_path: path, date, note, author }));
+      check(await db.from("scrapbook_entries").insert({ id, photo_path: path, audio_path: audioPath, date, note, author }));
       return id;
     },
     async update(id, { date, note }, code) {

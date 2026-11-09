@@ -11,6 +11,7 @@ insert into public.scrapbook_settings (title) values ('Our Scrapbook');
 create table public.scrapbook_entries (
   id uuid primary key,
   photo_path text not null unique check (photo_path ~ '^[0-9a-f-]{36}\.jpg$'),
+  audio_path text unique check (audio_path ~ '^[0-9a-f-]{36}\.(mp3|m4a|aac|wav|ogg|opus|webm|flac)$'),
   date date not null,
   note text not null default '' check (char_length(note) <= 500),
   author text not null default '' check (char_length(author) <= 40),
@@ -35,6 +36,13 @@ values ('scrapbook-photos', 'scrapbook-photos', true, 5242880, array['image/jpeg
 
 create policy "Scrapbook: anyone can upload photos" on storage.objects
   for insert to anon with check (bucket_id = 'scrapbook-photos');
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('scrapbook-audio', 'scrapbook-audio', true, 15728640,
+  array['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/flac']);
+
+create policy "Scrapbook: anyone can upload audio" on storage.objects
+  for insert to anon with check (bucket_id = 'scrapbook-audio');
 
 -- The owner code lives in a schema the public API can't read.
 create schema if not exists scrapbook_private;

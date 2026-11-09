@@ -3,6 +3,12 @@ const CODE_KEY = "scrapbook-owner-code";
 const AUTHOR_KEY = "scrapbook-author";
 const PER_PAGE = 3;
 const MAX_FILES = 12;
+const MAX_AUDIO_MB = 15;
+// Browsers label the same file differently, so the extension decides the type.
+const AUDIO_TYPES = {
+  mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav",
+  ogg: "audio/ogg", opus: "audio/ogg", webm: "audio/webm", flac: "audio/flac",
+};
 const FLIP_MS = 1150;
 const OPEN_MS = 1500;
 const narrow = matchMedia("(max-width: 760px)");
@@ -272,7 +278,7 @@ function renderCard(entry, slot, order) {
   const card = el("button", `card ${slip ? "card-slip" : "card-polaroid"}`);
   card.type = "button";
   card.style.cssText = `left:${slot.l}%;top:${slot.t}%;width:${slot.w}%;height:${slot.h}%;--r:${slot.r}deg;z-index:${order + 1}`;
-  card.setAttribute("aria-label", `${prettyDay(entry.date)}${entry.note ? `: ${entry.note}` : ""}. Open photo.`);
+  card.setAttribute("aria-label", `${prettyDay(entry.date)}${entry.note ? `: ${entry.note}` : ""}.${entry.audio_url ? " Has a sound clip." : ""} Open photo.`);
   card.dataset.id = entry.id;
 
   const tape = el("span", `tape tape${seed % 3}`);
@@ -284,6 +290,7 @@ function renderCard(entry, slot, order) {
   img.alt = "";
   img.draggable = false;
   photo.append(img);
+  if (entry.audio_url) photo.append(el("span", "record card-record"));
 
   const caption = el("span", "caption");
   caption.append(el("span", "when", prettyDay(entry.date)));
@@ -570,7 +577,28 @@ function manualFlip(delta) {
 /* Add photos */
 
 let chosenFiles = [];
+let chosenAudio = null;
 let dateTouched = false;
+
+function setAudio(audio) {
+  chosenAudio = audio;
+  $("audioText").textContent = audio ? audio.blob.name : "Add a sound clip (optional)";
+  $("audioClear").hidden = !audio;
+}
+
+function chooseAudio(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (!Object.hasOwn(AUDIO_TYPES, ext)) {
+    showError("addError", "That sound file isn't supported. Try MP3, M4A or WAV.");
+    return;
+  }
+  if (file.size > MAX_AUDIO_MB * 1048576) {
+    showError("addError", `That sound clip is too big. The limit is ${MAX_AUDIO_MB} MB.`);
+    return;
+  }
+  showError("addError", "");
+  setAudio({ blob: file, ext, type: AUDIO_TYPES[ext] });
+}
 
 function clearPreviews() {
   $("previews").querySelectorAll("img").forEach((img) => URL.revokeObjectURL(img.src));
@@ -584,6 +612,7 @@ function openAdd() {
   clearPreviews();
   $("addForm").reset();
   $("dropText").textContent = "Choose photos, or drop them here";
+  setAudio(null);
   $("dateInput").value = isoDay();
   $("authorInput").value = storageGet(AUTHOR_KEY);
   showError("addError", "");
@@ -654,7 +683,9 @@ async function submitAdd(event) {
     submit.textContent = `Sticking ${i + 1} of ${chosenFiles.length}…`;
     try {
       const blob = await toJpeg(file);
-      lastId = await state.store.add({ blob, date, note, author });
+      // One clip per upload: it goes on the first photo that saves.
+      lastId = await state.store.add({ blob, date, note, author, audio: chosenAudio });
+      setAudio(null);
     } catch (error) {
       failed.push(file);
       lastError = error.message;
@@ -701,6 +732,8 @@ function openView(id) {
   stopAutoplay();
   state.viewing = entry;
   fillView(entry);
+  $("viewSound").hidden = !entry.audio_url;
+  if (entry.audio_url) $("viewAudio").src = entry.audio_url;
   setViewEditing(false);
   resetDeleteButton();
   showError("viewError", "");
@@ -818,14 +851,25 @@ function wire() {
   $("dateInput").addEventListener("input", () => { dateTouched = true; });
   $("fileInput").addEventListener("change", (event) => chooseFiles(event.target.files));
 
-  const drop = $("drop");
-  for (const type of ["dragenter", "dragover"]) {
-    drop.addEventListener(type, (event) => { event.preventDefault(); drop.classList.add("over"); });
-  }
-  for (const type of ["dragleave", "drop"]) {
-    drop.addEventListener(type, (event) => { event.preventDefault(); drop.classList.remove("over"); });
-  }
-  drop.addEventListener("drop", (event) => chooseFiles(event.dataTransfer.files));
+  $("audioInput").addEventListener("change", (event) => {
+    if (event.target.files[0]) chooseAudio(event.target.files[0]);
+    event.target.value = "";
+  });
+  $("audioClear").addEventListener("click", () => setAudio(null));
+
+  const dropZone = (zone, onFiles) => {
+    for (const type of ["dragenter", "dragover"]) {
+      zone.addEventListener(type, (event) => { event.preventDefault(); zone.classList.add("over"); });
+    }
+    for (const type of ["dragleave", "drop"]) {
+      zone.addEventListener(type, (event) => { event.preventDefault(); zone.classList.remove("over"); });
+    }
+    zone.addEventListener("drop", (event) => {
+      if (event.dataTransfer.files.length) onFiles(event.dataTransfer.files);
+    });
+  };
+  dropZone($("drop"), chooseFiles);
+  dropZone($("audioDrop"), (files) => chooseAudio(files[0]));
 
   $("prev").addEventListener("click", () => manualFlip(-1));
   $("next").addEventListener("click", () => manualFlip(1));
@@ -853,6 +897,17 @@ function wire() {
     if (document.querySelector("dialog[open]") || event.target.matches("input,textarea")) return;
     if (event.key === "ArrowRight") manualFlip(1);
     if (event.key === "ArrowLeft") manualFlip(-1);
+  });
+
+  const clip = $("viewAudio");
+  const spin = (playing) => $("viewRecord").classList.toggle("playing", playing);
+  clip.addEventListener("play", () => spin(true));
+  for (const type of ["pause", "ended", "emptied"]) clip.addEventListener(type, () => spin(false));
+  clip.addEventListener("error", () => showError("viewError", "This browser can't play that sound file."));
+  $("viewDialog").addEventListener("close", () => {
+    clip.pause();
+    clip.removeAttribute("src");
+    clip.load();
   });
 
   $("viewClose").addEventListener("click", () => $("viewDialog").close());

@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alfa+Slab+One&family=Caveat:wght@500;700&family=Karla:wght@400;600;700&family=Playfair+Display:ital,wght@1,900&family=Special+Elite&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=4">
-  <link rel="stylesheet" href="book.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="book.css?v=5">
 </head>
 <body class="closed">
   <p id="previewBanner" class="banner" hidden>
@@ -66,6 +66,14 @@
         <span id="dropText">Choose photos, or drop them here</span>
         <span id="previews" class="previews"></span>
       </label>
+      <div class="audio-pick">
+        <label id="audioDrop" class="drop drop-small">
+          <input id="audioInput" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.webm,.flac">
+          <span class="record pick-record" aria-hidden="true"></span>
+          <span id="audioText">Add a sound clip (optional)</span>
+        </label>
+        <button id="audioClear" type="button" class="btn" hidden>Remove</button>
+      </div>
       <label class="field">Date
         <input id="dateInput" type="date" required>
       </label>
@@ -93,6 +101,10 @@
           <p id="viewDate" class="view-date"></p>
           <p id="viewNote" class="view-note" dir="auto"></p>
           <p id="viewAuthor" class="view-author" dir="auto"></p>
+          <div id="viewSound" class="view-sound" hidden>
+            <span id="viewRecord" class="record view-record" aria-hidden="true"></span>
+            <audio id="viewAudio" controls preload="metadata"></audio>
+          </div>
           <div class="dialog-actions start">
             <button id="viewEdit" class="btn">Edit</button>
             <button id="viewDelete" class="btn">Delete</button>
@@ -127,9 +139,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=4"></script>
-  <script src="store.js?v=4"></script>
-  <script src="bouquet.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="config.js?v=5"></script>
+  <script src="store.js?v=5"></script>
+  <script src="bouquet.js?v=5"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

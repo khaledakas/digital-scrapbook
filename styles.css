@@ -223,7 +223,7 @@ textarea { resize: vertical; font-family: var(--hand); font-size: 22px; line-hei
   box-shadow: 1px 2px 3px rgba(10, 1, 79, .24), 0 16px 22px -10px rgba(10, 1, 79, .45);
   z-index: 4 !important;
 }
-.photo { display: block; flex: 1 1 0; min-height: 0; overflow: hidden; background: var(--vanilla-soft); }
+.photo { position: relative; display: block; flex: 1 1 0; min-height: 0; overflow: hidden; background: var(--vanilla-soft); }
 .photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .caption { display: block; flex: none; padding-top: 1cqw; }
 .when { display: block; font: max(10px, 2.2cqw)/1.2 var(--type); color: var(--twilight-soft); }
@@ -333,6 +333,8 @@ dialog::backdrop { background: rgba(10, 1, 79, .55); }
   cursor: pointer;
 }
 .drop.over { background: var(--thistle); }
+.audio-pick { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.drop-small { flex: 1 1 0; min-width: 0; flex-direction: row; justify-content: flex-start; min-height: 56px; padding: 8px 12px; text-align: left; overflow-wrap: anywhere; }
 .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .previews { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .previews:empty { display: none; }
@@ -366,6 +368,8 @@ dialog::backdrop { background: rgba(10, 1, 79, .55); }
 .view-date { margin: 0; font: 16px var(--type); }
 .view-note { margin: 12px 0; font: 500 28px/1.12 var(--hand); white-space: pre-wrap; overflow-wrap: anywhere; }
 .view-author { margin: 0; color: var(--twilight-soft); font-size: 15px; }
+.view-sound { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px; }
+.view-sound audio { display: block; width: 100%; }
 
 .toast {
   position: fixed;
