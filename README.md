@@ -20,7 +20,7 @@ Until this is set up, the site runs in preview mode and photos stay in your own 
 
 - Anyone with the link can view and add photos.
 - Changing the title, editing and deleting need the owner code. The browser remembers it after the first use.
-- Anyone adding photos can attach one sound clip (MP3, M4A, WAV and similar, up to 15 MB). It goes on the first photo in that upload, and a spinning record marks it on the page.
+- Anyone adding photos can attach one sound clip (MP3, M4A, WAV and similar, up to 15 MB). It goes on the first photo in that upload, and a spinning record marks it on the page. Resting the mouse on the photo plays it; on touchscreens, tap the photo to open its player.
 - Memories are always in date order. Open one and use **Add before** or **Add after** to slot a new one next to it. The new date has to stay between its two neighbours.
 - The search bar looks through memory titles and notes.
 - Deleting removes a memory from the scrapbook. Its files stay in the Supabase `scrapbook-photos` and `scrapbook-audio` buckets until you remove them there.

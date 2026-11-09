@@ -479,6 +479,7 @@ function hidePopup() {
 function openBook() {
   if (state.opened) return;
   state.opened = true;
+  unlockHoverSound();
   const cover = $("cover");
   const finish = () => {
     document.body.classList.remove("closed", "opening");
@@ -502,6 +503,7 @@ function openBook() {
 function flipTo(target) {
   target = Math.max(0, Math.min(snap(target), lastIndex()));
   if (state.flipping || target === state.cur) return;
+  stopHover();
   const forward = target > state.cur;
   const from = state.cur;
   state.cur = target;
@@ -590,6 +592,38 @@ function manualFlip(delta) {
   }
   stopAutoplay();
   flipTo(state.cur + delta * step());
+}
+
+/* Hover to play */
+
+// A fraction of a second of silence, used to get the browser's permission to play.
+const SILENCE = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQQAAAAAAAAA";
+const hover = { clip: new Audio(), id: null, timer: 0 };
+
+// Browsers block sound that doesn't follow a click, so this runs on the click that opens the book.
+function unlockHoverSound() {
+  hover.clip.src = SILENCE;
+  hover.clip.play().then(() => { if (!hover.id) hover.clip.pause(); }).catch(() => {});
+}
+
+function stopHover() {
+  clearTimeout(hover.timer);
+  if (!hover.id) return;
+  hover.id = null;
+  hover.clip.pause();
+  hover.clip.removeAttribute("src");
+  hover.clip.load();
+}
+
+function hoverPlay(entry) {
+  if (hover.id === entry.id || state.flipping) return;
+  stopHover();
+  hover.id = entry.id;
+  // A short wait so sweeping the mouse across the page doesn't set off every clip.
+  hover.timer = setTimeout(() => {
+    hover.clip.src = entry.audio_url;
+    hover.clip.play().catch(() => {});
+  }, 150);
 }
 
 /* Add photos */
@@ -798,6 +832,7 @@ function openView(id) {
   const entry = state.entries.find((item) => item.id === id);
   if (!entry) return;
   stopAutoplay();
+  stopHover();
   state.viewing = entry;
   fillView(entry);
   $("viewSound").hidden = !entry.audio_url;
@@ -1018,6 +1053,14 @@ function wire() {
       manualFlip(dx < 0 ? 1 : -1);
     }
   });
+  book.addEventListener("pointerover", (event) => {
+    if (event.pointerType !== "mouse") return;
+    const card = event.target.closest(".card");
+    const entry = card && state.entries.find((item) => item.id === card.dataset.id);
+    if (entry?.audio_url) hoverPlay(entry);
+    else stopHover();
+  });
+  book.addEventListener("pointerleave", stopHover);
   book.addEventListener("click", (event) => {
     const card = event.target.closest(".card");
     if (card && Date.now() - swipedAt > 300) openView(card.dataset.id);
@@ -1050,7 +1093,10 @@ function wire() {
   $("viewDelete").addEventListener("click", deleteViewing);
 
   narrow.addEventListener("change", () => { stopAutoplay(); rebuild(); });
-  document.addEventListener("visibilitychange", quietRefresh);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopHover();
+    quietRefresh();
+  });
   setInterval(quietRefresh, 60000);
 }
 
